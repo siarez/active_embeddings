@@ -8,7 +8,7 @@ class HGRBM(t.nn.Module):
     """
     A two layer fully connected RBM
     """
-    def __init__(self, visible_size=32, hidden_size=8, bias=False):
+    def __init__(self, visible_size=32, hidden_size=8, bias=False, temp=0.1):
         """
         The RBM has the hourglass structure visible_size x hidden_size x visible_size
         :param visible_size: Size of the ends (left & right) of the hourglass
@@ -17,7 +17,7 @@ class HGRBM(t.nn.Module):
         """
         super().__init__()
         # todo: might need to turn these into `Parameter` at some point
-        self.visible_size, self.hidden_size, self.bias = visible_size, hidden_size, bias
+        self.visible_size, self.hidden_size, self.bias, self.temp = visible_size, hidden_size, bias, temp
         k = t.sqrt(t.tensor(visible_size, dtype=t.float))  # init constant factor
         self.left_w = (2 * t.rand(visible_size, hidden_size) - 1.) / k
         self.right_w = (2 * t.rand(visible_size, hidden_size) - 1.) / k
@@ -44,7 +44,7 @@ class HGRBM(t.nn.Module):
         hidden_logit = self.left_state @ self.left_w + self.right_state @ self.right_w
         if self.bias:
             hidden_logit += self.hidden_b
-        self.hidden_state = self.sample(t.sigmoid(hidden_logit))
+        self.hidden_state = self.sample(t.sigmoid(hidden_logit/self.temp))
 
     def outward(self):
         """
@@ -56,8 +56,9 @@ class HGRBM(t.nn.Module):
         if self.bias:
             left_logit += self.left_b
             right_logit += self.right_b
-        self.left_state = self.sample(t.sigmoid(left_logit))
-        self.right_state = self.sample(t.sigmoid(right_logit))
+        self.left_state = self.sample(t.sigmoid(left_logit/self.temp))
+        self.right_state = self.sample(t.sigmoid(right_logit/self.temp))
+
 
     def energy(self):
         """
@@ -67,7 +68,7 @@ class HGRBM(t.nn.Module):
         left_energy = self.left_state @ self.left_w @ t.t(self.hidden_state)
         right_energy = self.right_state @ self.right_w @ t.t(self.hidden_state)
         return left_energy + right_energy
-    
+
     @staticmethod
     def sample(prob):
         return 2. * t.bernoulli(prob) - 1
