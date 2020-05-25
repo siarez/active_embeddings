@@ -84,8 +84,10 @@ class HGRBM(t.nn.Module):
         :param x: Input. The first dimension is batch
         :param lr: learning rate
         :param k: number of steps for negative sampling
-        :return: Returns gradient l1 norms; o be used as a measure of convergence
+        :return: Returns weight update-size l1 norms; to be used as a measure of convergence
         """
+        batch_size = t.tensor(x_left.shape[0], dtype=t.float)
+        lr = lr / batch_size  # Normalizing learning rate for batch size
         self.inward(x_left, x_right)
         h_positive = self.hidden_state.clone()
         for _ in range(k):
@@ -104,7 +106,7 @@ class HGRBM(t.nn.Module):
         self.right_b += grad_right_b * lr
         self.hidden_b += grad_hidden_b * lr
 
-        return t.norm(grad_left_w, p=1), t.norm(grad_right_w, p=1)
+        return t.norm(grad_left_w, p=1) * lr, t.norm(grad_right_w, p=1) * lr
 
     @staticmethod
     def sample(prob):
